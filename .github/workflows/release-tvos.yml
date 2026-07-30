@@ -93,11 +93,7 @@ jobs:
       - name: Package the IPAs
         run: |
           mkdir -p out/full/Payload out/lite/Payload out/ios/Payload
-          cp -R app/build/ci/Build/Products/Release-appletvos/StremioXTV.app out/full/Payload/
-          cp -R app/build/ci-lite/Build/Products/Release-appletvos/StremioXTVLite.app out/lite/Payload/
           cp -R app/build/ci-ios/Build/Products/Release-iphoneos/StremioXiOSNative.app out/ios/Payload/
-          (cd out/full && zip -qry ../StremioX-tvOS-ci.ipa Payload)
-          (cd out/lite && zip -qry ../StremioX-tvOS-lite-ci.ipa Payload)
           (cd out/ios && zip -qry ../StremioX-iOS-ci.ipa Payload)
           # macOS: an UNSIGNED arm64 app shows "damaged and can't be opened", so ad-hoc sign it
           # (every nested binary gets a valid signature -> the kernel will run it), then zip the
@@ -128,10 +124,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ github.event.release.tag_name }}
         run: |
-          mv out/StremioX-tvOS-ci.ipa "out/StremioX-tvOS-$TAG-ci.ipa"
-          mv out/StremioX-tvOS-lite-ci.ipa "out/StremioX-tvOS-lite-$TAG-ci.ipa"
           mv out/StremioX-iOS-ci.ipa "out/StremioX-iOS-$TAG-ci.ipa"
-          mv out/StremioX-macOS-ci.zip "out/StremioX-macOS-$TAG-ci.zip"
           shasum -a 256 "out/StremioX-tvOS-$TAG-ci.ipa" "out/StremioX-tvOS-lite-$TAG-ci.ipa" "out/StremioX-iOS-$TAG-ci.ipa" "out/StremioX-macOS-$TAG-ci.zip" > out/SHA256SUMS-ci.txt
           gh release upload "$TAG" \
             "out/StremioX-tvOS-$TAG-ci.ipa" \
