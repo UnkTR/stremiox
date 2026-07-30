@@ -8,18 +8,14 @@ import SwiftUI
 struct iOSRootView: View {
     /// The seven destinations, in display order: Home · Discover · Live · Library · Search · Add-ons
     /// · Settings (Live sits after Discover; Add-ons beside Settings, mirroring tvOS).
-    private enum Tab: Int, CaseIterable {
-        case home, discover, live, library, search, addons, settings
+        private enum Tab: Int, CaseIterable {
+        case home, discover, library
 
         var title: String {
             switch self {
             case .home: return "Home"
             case .discover: return "Discover"
-            case .live: return "Live"
             case .library: return "Library"
-            case .search: return "Search"
-            case .addons: return "Add-ons"
-            case .settings: return "Settings"
             }
         }
 
@@ -27,28 +23,19 @@ struct iOSRootView: View {
             switch self {
             case .home: return "house.fill"
             case .discover: return "safari.fill"
-            case .live: return "dot.radiowaves.left.and.right"
             case .library: return "books.vertical.fill"
-            case .search: return "magnifyingglass"
-            case .addons: return "puzzlepiece.extension.fill"
-            case .settings: return "gearshape.fill"
             }
         }
 
-        /// The unfilled twin of `icon`, shown when the tab is inactive so the active tab reads as
-        /// filled-and-tinted against outline neighbours (#22). Symbols without a fill variant (Live's
-        /// waves, Search's glass) keep their single glyph.
         var inactiveIcon: String {
             switch self {
             case .home: return "house"
             case .discover: return "safari"
             case .library: return "books.vertical"
-            case .addons: return "puzzlepiece.extension"
-            case .settings: return "gearshape"
-            case .live, .search: return icon
             }
         }
     }
+
 
     @State private var tab: Tab = .home
 
