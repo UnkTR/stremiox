@@ -1,135 +1,56 @@
-name: Release IPAs (tvOS + iOS)
-
-# Builds the tvOS IPA from source on GitHub's runners and attaches it to the
-# release, so anyone can verify the published binary really comes from this
-# code (issue #7). Everything it consumes is public: NodeMobile and the fonts
-# from this repo's vendor release, server.js from Stremio's CDN, and the
-# stremio-core engine built from the core/ crate in this repo.
+name: Release iOS IPA
 
 on:
-  # Release-tag caches are isolated per tag, so seed the same exact cache key on
-  # main where later release runs can restore it from the default-branch scope.
-  push:
-    branches: [main]
-    paths:
-      - ".github/workflows/release-tvos.yml"
-      - "core/**"
-      - "scripts/**"
-  release:
-    types: [published]
   workflow_dispatch:
-
-permissions:
-  contents: write
+  push:
+    tags:
+      - 'v*'
 
 jobs:
-  build-tvos:
-    runs-on: macos-latest
-    timeout-minutes: 90
+  build-ios:
+    runs-on: macos-14
+
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout Repository
+        uses: actions/checkout@v4
 
-      - name: Select the newest Xcode on the runner
-        run: |
-          XCODE="$(ls -d /Applications/Xcode_*.app | sort -V | tail -1)"
-          echo "Selecting $XCODE"
-          sudo xcode-select -s "$XCODE"
-
-      - name: Show toolchain
-        id: toolchain
-        run: |
-          xcodebuild -version
-          xcrun --sdk appletvos --show-sdk-version
-          echo "xcode_version=$(xcodebuild -version | tr ' \n' '-')" >> "$GITHUB_OUTPUT"
-          echo "tvos_sdk=$(xcrun --sdk appletvos --show-sdk-version)" >> "$GITHUB_OUTPUT"
-
-      - name: Install XcodeGen
-        run: brew install xcodegen
-
-      - name: Rust nightly with rust-src (tvOS is a tier 3 target)
-        run: |
-          rustup toolchain install nightly --profile minimal --component rust-src
-          rustup +nightly target add aarch64-apple-ios aarch64-apple-ios-sim
-
-      - name: Cache cargo
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            core/target
-          key: cargo-${{ runner.os }}-${{ hashFiles('core/Cargo.lock', 'core/Cargo.toml') }}
-          restore-keys: cargo-${{ runner.os }}-
-
-      - name: Fetch server deps (NodeMobile, server.js, subtitle fonts)
-        run: ./scripts/fetch-server-deps.sh
-
-      - name: Fetch the macOS node runtime
-        # StremioXMac bundles node + server.js as its streaming server. The binary is gitignored, so
-        # it must be fetched BEFORE xcodegen runs — xcodegen validates that the
-        # Resources/node-darwin-arm64 source path exists, and fails project generation if it's absent.
-        run: ./app/scripts/fetch-node-macos.sh
-
-      - name: Cache stremio-core xcframework
-        id: cache-core-xcframework
-        uses: actions/cache@v4
-        with:
-          path: app/Vendor/StremioXCore.xcframework
-          key: stremio-core-xcframework-${{ runner.os }}-${{ steps.toolchain.outputs.xcode_version }}-${{ steps.toolchain.outputs.tvos_sdk }}-${{ hashFiles('core/Cargo.lock', 'core/Cargo.toml', 'core/rust-toolchain.toml', 'core/src/**', 'core/include/**', 'scripts/build-core-xcframework.sh') }}
-
-      - name: Build the stremio-core xcframework
-        if: steps.cache-core-xcframework.outputs.cache-hit != 'true'
-        run: ./scripts/build-core-xcframework.sh
-
-      - name: Generate the Xcode project
-        run: cd app && xcodegen generate
-
-      - name: Build (unsigned Release, same as the published builds)
+      # 1. Sadece iOS Hedefini Derle
+      - name: Build iOS Target
         run: |
           cd app
-          xcodebuild -project StremioX.xcodeproj -scheme StremioXiOSNative \
-            -configuration Release -destination 'generic/platform=iOS' \
-            -derivedDataPath build/ci-ios CODE_SIGNING_ALLOWED=NO build
-      - name: Package the IPAs
-        run: |
-          mkdir -p out/full/Payload out/lite/Payload out/ios/Payload
-          cp -R app/build/ci-ios/Build/Products/Release-iphoneos/StremioXiOSNative.app out/ios/Payload/
-          (cd out/ios && zip -qry ../StremioX-iOS-ci.ipa Payload)
-          # macOS: an UNSIGNED arm64 app shows "damaged and can't be opened", so ad-hoc sign it
-          # (every nested binary gets a valid signature -> the kernel will run it), then zip the
-          # bundle as StremioXMac.app. Shipped as a zip so the documented run step (unzip ->
-          # xattr + codesign) works copy-paste. We can't notarize without an Apple Developer ID, so a
-          # downloaded build is still quarantined -- the release notes give the one-time fix.
-          MAC_APP="app/build/ci-mac/Build/Products/Release/StremioXMac.app"
-          codesign --force --deep --sign - "$MAC_APP"
-          codesign -dv "$MAC_APP" 2>&1 | sed -n '1,3p' || true
-          ditto -c -k --keepParent "$MAC_APP" out/StremioX-macOS-ci.zip
-          shasum -a 256 out/StremioX-tvOS-ci.ipa out/StremioX-tvOS-lite-ci.ipa out/StremioX-iOS-ci.ipa out/StremioX-macOS-ci.zip | tee out/SHA256SUMS-ci.txt
+          xcodebuild -project StremioX.xcodeproj \
+            -scheme StremioXiOSNative \
+            -configuration Release \
+            -destination 'generic/platform=iOS' \
+            -derivedDataPath build/ci-ios \
+            CODE_SIGNING_ALLOWED=NO build
 
-      - name: Upload artifact (manual runs)
-        if: github.event_name == 'workflow_dispatch'
+      # 2. IPA Paketleme (Payload Hatasını Çözen Kısım)
+      - name: Create Unsigned IPA
+        run: |
+          cd app
+          # Payload klasörünü oluştur ve .app dosyasını içine kopyala
+          mkdir -p Payload
+          cp -r build/ci-ios/Build/Products/Release-iphoneos/StremioXiOSNative.app Payload/
+          
+          # Payload klasörünü IPA olarak zip'le
+          zip -qr StremioXiOSNative.ipa Payload
+          
+          # Temizlik
+          rm -rf Payload
+
+      # 3. IPA'yı İş Akışına Artifact Olarak Yükle
+      - name: Upload IPA Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: StremioX-tvOS-ci
-          path: |
-            out/StremioX-tvOS-ci.ipa
-            out/StremioX-tvOS-lite-ci.ipa
-            out/StremioX-iOS-ci.ipa
-            out/StremioX-macOS-ci.zip
-            out/SHA256SUMS-ci.txt
+          name: StremioXiOSNative-IPA
+          path: app/StremioXiOSNative.ipa
 
-      - name: Attach the CI builds to the release
-        if: github.event_name == 'release'
+      # 4. (Opsiyonel) Tag atıldığında GitHub Release Sayfasına Ekle
+      - name: Upload to GitHub Release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: app/StremioXiOSNative.ipa
         env:
-          GH_TOKEN: ${{ github.token }}
-          TAG: ${{ github.event.release.tag_name }}
-        run: |
-          mv out/StremioX-iOS-ci.ipa "out/StremioX-iOS-$TAG-ci.ipa"
-          shasum -a 256 "out/StremioX-tvOS-$TAG-ci.ipa" "out/StremioX-tvOS-lite-$TAG-ci.ipa" "out/StremioX-iOS-$TAG-ci.ipa" "out/StremioX-macOS-$TAG-ci.zip" > out/SHA256SUMS-ci.txt
-          gh release upload "$TAG" \
-            "out/StremioX-tvOS-$TAG-ci.ipa" \
-            "out/StremioX-tvOS-lite-$TAG-ci.ipa" \
-            "out/StremioX-iOS-$TAG-ci.ipa" \
-            "out/StremioX-macOS-$TAG-ci.zip" \
-            out/SHA256SUMS-ci.txt \
-            --clobber
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
