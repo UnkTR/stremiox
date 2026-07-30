@@ -221,7 +221,7 @@ struct iOSHomeView: View {
             .background(Theme.Palette.canvas.ignoresSafeArea())
             .stremioWordmarkTitle("Home", isActive: isActive)
             .toolbar {
-                ToolbarItem(placement: settingsButtonPlacement) {
+                ToolbarItem(placement: .topBarTrailing) {
                     Button { showSettings = true } label: {
                         Image(systemName: "gearshape.fill")
                     }
