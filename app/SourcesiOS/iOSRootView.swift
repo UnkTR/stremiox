@@ -38,6 +38,16 @@ struct iOSRootView: View {
 
 
     @State private var tab: Tab = .home
+    
+    /// .navigationBarLeading only exists on iOS/iPadOS; macOS has no leading nav-bar slot,
+    /// so the gear falls back to .automatic there (placed by the system, still reachable).
+    private var settingsButtonPlacement: ToolbarItemPlacement {
+        #if os(iOS)
+        .navigationBarLeading
+        #else
+        .automatic
+        #endif
+    }
 
     var body: some View {
         VStack(spacing: 0) {
