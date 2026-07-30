@@ -49,6 +49,7 @@ struct iOSSettingsView: View {
                 // as warm dark surfaces with canvas showing between them, matching the rest of the app
                 // (and identical on iPadOS, which shares this view).
                 profilesSection.listRowBackground(Theme.Palette.surface1)
+                moreSection.listRowBackground(Theme.Palette.surface1)
                 accountSection.listRowBackground(Theme.Palette.surface1)
                 playbackSection.listRowBackground(Theme.Palette.surface1)
                 streamsSection.listRowBackground(Theme.Palette.surface1)
@@ -112,6 +113,21 @@ struct iOSSettingsView: View {
                 }
             }
             .task { updates.checkIfStale(maxAge: 30 * 60) }   // a Settings visit deserves a fresh answer
+        }
+    }
+
+    @ViewBuilder private var moreSection: some View {
+        Section("More") {
+            NavigationLink {
+                iOSLiveView()
+            } label: {
+                Label("Live TV", systemImage: "dot.radiowaves.left.and.right")
+            }
+            NavigationLink {
+                AddonsView()
+            } label: {
+                Label("Add-ons", systemImage: "puzzlepiece.extension.fill")
+            }
         }
     }
 
