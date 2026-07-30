@@ -51,11 +51,7 @@ struct iOSRootView: View {
                 // Only the visible tab contributes its wordmark (#46 regression).
                 iOSHomeView(isActive: tab == .home).opacity(tab == .home ? 1 : 0)
                 iOSDiscoverView(isActive: tab == .discover).opacity(tab == .discover ? 1 : 0)
-                iOSLiveView().opacity(tab == .live ? 1 : 0)
                 iOSLibraryView(isActive: tab == .library).opacity(tab == .library ? 1 : 0)
-                iOSSearchView(isActive: tab == .search).opacity(tab == .search ? 1 : 0)
-                AddonsView().opacity(tab == .addons ? 1 : 0)
-                iOSSettingsView().opacity(tab == .settings ? 1 : 0)
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
 
@@ -134,6 +130,8 @@ struct iOSHomeView: View {
     @EnvironmentObject private var theme: ThemeManager   // observe textScale so Theme.Typography repaints live
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var showSignIn = false
+    @State private var showSearch = false
+    @State private var showSettings = false
     @StateObject private var hero = FeaturedHeroModel()
     @State private var path: [FeaturedHeroItem] = []
     /// A Continue-Watching card's direct resume launches the player straight from Home (#11).
@@ -212,14 +210,25 @@ struct iOSHomeView: View {
             .scrollDismissesHeroRotation(model: hero)
             .background(Theme.Palette.canvas.ignoresSafeArea())
             .stremioWordmarkTitle("Home", isActive: isActive)
-            .toolbar {
-                if !account.isSignedIn {
-                    ToolbarItem(placement: .primaryAction) {
+                        .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button { showSettings = true } label: {
+                        Image(systemName: "gearshape.fill")
+                    }
+                }
+                ToolbarItemGroup(placement: .primaryAction) {
+                    Button { showSearch = true } label: {
+                        Image(systemName: "magnifyingglass")
+                    }
+                    if !account.isSignedIn {
                         Button("Sign In") { showSignIn = true }
                     }
                 }
             }
             .sheet(isPresented: $showSignIn) { iOSSignInView() }
+            .sheet(isPresented: $showSearch) { iOSSearchView() }
+            .sheet(isPresented: $showSettings) { iOSSettingsView() }
+
             .navigationDestination(for: FeaturedHeroItem.self) { item in
                 iOSDetailView(id: item.id, type: item.type, title: item.name)
             }
