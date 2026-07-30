@@ -842,6 +842,15 @@ struct PlayerScreen: View {
         }
     }
 
+        private var centerTransport: some View {
+        Button { coordinator.player?.togglePause(); scheduleHide() } label: {
+            Image(systemName: isPaused ? "play.fill" : "pause.fill")
+                .font(.system(size: 50)).foregroundStyle(.white).shadow(radius: 8)
+                .frame(width: 100, height: 100)
+        }
+        .accessibilityLabel(isPaused ? "Play" : "Pause")
+    }
+
     private var topBar: some View {
         HStack(spacing: 12) {
             iconButton("chevron.down", label: "Close player") { leavePlayback() }
@@ -858,54 +867,44 @@ struct PlayerScreen: View {
             Spacer()
             if hasNext {
                 iconButton("forward.end.fill", label: "Next episode") {
-                    if duration > 0 { onProgress(currentTime, duration) }   // flush before advancing
+                    if duration > 0 { onProgress(currentTime, duration) }
                     onNext()
                 }
             }
-            #if os(iOS)
-            // Manual landscape lock is an iOS-only affordance (macOS windows don't rotate).
-            iconButton(forcedLandscape ? "arrow.down.right.and.arrow.up.left"
-                                       : "arrow.up.left.and.arrow.down.right", label: "Toggle fullscreen") {
-                forcedLandscape.toggle()
-                coordinator.player?.setOrientation(landscape: forcedLandscape)
-                scheduleHide()
-            }
-            #endif
-            if !isLive {
-                // Restart from 0:00 (tvOS parity #5): seek to the start and keep playing.
-                iconButton("arrow.counterclockwise", label: "Restart") {
-                    coordinator.player?.seek(to: 0)
-                    currentTime = 0
-                    if duration > 0 { onSeek(0, duration); lastReported = 0 }
-                    if isPaused { coordinator.player?.togglePause() }   // restart implies resume
-                    scheduleHide()
+            Menu {
+                #if os(iOS)
+                Button {
+                    forcedLandscape.toggle()
+                    coordinator.player?.setOrientation(landscape: forcedLandscape)
+                } label: {
+                    Label(forcedLandscape ? "Exit Fullscreen Lock" : "Lock Fullscreen",
+                          systemImage: forcedLandscape ? "arrow.down.right.and.arrow.up.left"
+                                                       : "arrow.up.left.and.arrow.down.right")
                 }
+                #endif
+                if !isLive {
+                    Button {
+                        coordinator.player?.seek(to: 0)
+                        currentTime = 0
+                        if duration > 0 { onSeek(0, duration); lastReported = 0 }
+                        if isPaused { coordinator.player?.togglePause() }
+                    } label: {
+                        Label("Restart", systemImage: "arrow.counterclockwise")
+                    }
+                }
+                Button { showExternalChooser = true } label: {
+                    Label("Play in Another App", systemImage: "arrow.up.forward.app")
+                }
+            } label: {
+                Image(systemName: "ellipsis")
+                    .font(.system(size: 17, weight: .semibold))
+                    .foregroundStyle(.white).padding(11).background(.black.opacity(0.35), in: Circle())
+                    .frame(width: 44, height: 44).contentShape(Circle())
             }
-            iconButton("gearshape", label: "Player settings") { openPanel(.playerSettings) }   // decoder toggle + playback info (tvOS parity #22)
-            iconButton("arrow.up.forward.app", label: "Play in another app") {       // hand off to Infuse / VLC / Share
-                hideTask?.cancel()
-                showExternalChooser = true
-            }
+            .accessibilityLabel("More options")
+            iconButton("gearshape", label: "Player settings") { openPanel(.playerSettings) }
         }
         .padding(.horizontal).padding(.top, 8)
-    }
-
-    private var centerTransport: some View {
-        HStack(spacing: 44) {
-            // Skip back 10s (hidden for live — no fixed timeline to seek within).
-            if !isLive {
-                seekButton("gobackward.10", by: -10)
-            }
-            Button { coordinator.player?.togglePause(); scheduleHide() } label: {
-                Image(systemName: isPaused ? "play.fill" : "pause.fill")
-                    .font(.system(size: 50)).foregroundStyle(.white).shadow(radius: 8)
-                    .frame(width: 100, height: 100)
-            }
-            .accessibilityLabel(isPaused ? "Play" : "Pause")
-            if !isLive {
-                seekButton("goforward.10", by: 10)
-            }
-        }
     }
 
     private func seekButton(_ icon: String, by delta: Double) -> some View {
@@ -950,20 +949,18 @@ struct PlayerScreen: View {
                 }
             }
 
-            HStack(spacing: 0) {
-                controlButton("speedometer", speed == 1.0 ? "Speed" : speedLabel(speed)) { openPanel(.speed) }
+            HStack(spacing: 28) {
                 Spacer()
-                controlButton("captions.bubble", "Subtitles") { openPanel(.subtitles) }
-                if !audioTracks.isEmpty {   // parity with tvOS: open the Audio panel for ANY track, not only when >1
-                    Spacer()
-                    controlButton("waveform", "Audio") { openPanel(.audio) }
+                iconOnlyButton("speedometer") { openPanel(.speed) }
+                iconOnlyButton("captions.bubble") { openPanel(.subtitles) }
+                if !audioTracks.isEmpty {
+                    iconOnlyButton("waveform") { openPanel(.audio) }
                 }
-                Spacer()
-                controlButton("aspectratio", "Aspect") { openPanel(.video) }
+                iconOnlyButton("aspectratio") { openPanel(.video) }
                 if hasAlternateSources {
-                    Spacer()
-                    controlButton("rectangle.stack", "Sources") { openPanel(.sources) }
+                    iconOnlyButton("rectangle.stack") { openPanel(.sources) }
                 }
+                Spacer()
             }
             .padding(.horizontal, 8)
         }
@@ -994,6 +991,14 @@ struct PlayerScreen: View {
                 Text(title).font(.subheadline.weight(.medium))
             }
             .foregroundStyle(.white)
+        }
+    }
+    private func iconOnlyButton(_ icon: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Image(systemName: icon)
+                .font(.system(size: 19, weight: .semibold))
+                .foregroundStyle(.white)
+                .frame(width: 34, height: 34)
         }
     }
 
