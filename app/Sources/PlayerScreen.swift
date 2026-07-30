@@ -115,6 +115,44 @@ struct PlayerScreen: View {
     @State private var macSleepActivity: NSObjectProtocol?
     #endif
     @State private var panel: Panel?
+        @State private var seekFlash: Double?   // ±10 rozeti, çift dokunuştan sonra kısa süre görünür
+
+    private func tapZone(width: CGFloat, doubleTap: @escaping () -> Void) -> some View {
+        Color.clear
+            .frame(width: width)
+            .contentShape(Rectangle())
+            .onTapGesture(count: 2, perform: doubleTap)
+            .onTapGesture(count: 1) { toggleControls() }
+    }
+
+    private func seekDoubleTap(by delta: Double) {
+        guard !isLive else { return }
+        let target = min(max(currentTime + delta, 0), max(duration - 1, 0))
+        coordinator.player?.seek(to: target)
+        currentTime = target
+        if duration > 0 { onSeek(target, duration); lastReported = target }
+        seekFlash = delta
+        Task { @MainActor in
+            try? await Task.sleep(for: .milliseconds(500))
+            if seekFlash == delta { seekFlash = nil }
+        }
+    }
+
+    private func seekFlashBadge(_ delta: Double) -> some View {
+        HStack(spacing: 6) {
+            Image(systemName: delta < 0 ? "gobackward.10" : "goforward.10")
+            Text(delta < 0 ? "-10s" : "+10s")
+        }
+        .font(.callout.weight(.semibold))
+        .foregroundStyle(.white)
+        .padding(.horizontal, 16).padding(.vertical, 10)
+        .background(.black.opacity(0.55), in: Capsule())
+        .frame(maxWidth: .infinity, maxHeight: .infinity,
+               alignment: delta < 0 ? .leading : .trailing)
+        .padding(delta < 0 ? .leading : .trailing, 40)
+        .transition(.opacity)
+        .allowsHitTesting(false)
+    }
     @State private var panelRows: [Row] = []   // cached so a 4×/s clock tick doesn't re-rank a thousand sources
     @State private var forcedLandscape = false
     @State private var hideTask: Task<Void, Never>?
