@@ -210,8 +210,8 @@ struct iOSHomeView: View {
             .scrollDismissesHeroRotation(model: hero)
             .background(Theme.Palette.canvas.ignoresSafeArea())
             .stremioWordmarkTitle("Home", isActive: isActive)
-                        .toolbar {
-                ToolbarItem(placement: .navigationBarLeading) {
+            .toolbar {
+                ToolbarItem(placement: settingsButtonPlacement) {
                     Button { showSettings = true } label: {
                         Image(systemName: "gearshape.fill")
                     }
