@@ -190,9 +190,18 @@ struct PlayerScreen: View {
             // recognizer on the Metal view frequently missed taps (you had to tap many times);
             // a SwiftUI contentShape layer catches every tap. The controls sit above it, so their
             // buttons still work and a tap on empty space falls through here to toggle.
-            Color.clear.contentShape(Rectangle()).onTapGesture { toggleControls() }.ignoresSafeArea()
+                GeometryReader { geo in
+                    HStack(spacing: 0) {
+                        tapZone(width: geo.size.width / 3) { seekDoubleTap(by: -10) }
+                        tapZone(width: geo.size.width / 3) { toggleControls() }
+                        tapZone(width: geo.size.width / 3) { seekDoubleTap(by: 10) }
+                    }
+                }
+                .ignoresSafeArea()
                 .accessibilityLabel("Show player controls")
                 .accessibilityAction { toggleControls() }
+
+                if let flash = seekFlash { seekFlashBadge(flash) }
 
             if (buffering || reconnecting) && !loadFailed { bufferingOverlay }
 
